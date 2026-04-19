@@ -38,5 +38,10 @@ No code path checks for the existence of `work_dir` or attempts to create it.
 ## Open Questions
 
 1. Should the bootstrap logic (branch creation, PR creation, label mutation) be implemented inside `main.py` directly, or extracted to a new module (e.g. `harness/bootstrap.py`)?
+   **Resolved**: Extract to a new module (`harness/bootstrap.py`). Source: PR comment by `antonlytunenko` on 2026-04-19.
+
 2. When `work_dir` does not exist, should the loop create it (with `mkdir -p` semantics) and continue, or log an error and exit?
+   **Resolved**: Create it (with `mkdir -p` semantics) and continue. Source: PR comment by `antonlytunenko` on 2026-04-19.
+
 3. Should `agent-ready` scanning include both issues **and** PRs, or issues only?
+   **Resolved**: Issues only for `agent-ready`; PRs should be scanned for `agent-research`, `agent-plan`, `agent-implement`. Source: PR comment by `antonlytunenko` on 2026-04-19.
