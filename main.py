@@ -43,6 +43,18 @@ def main() -> None:
 
     state_path = str(pathlib.Path(args.work_dir) / ".harness_state.json")
 
+    try:
+        startup_repos = read_repo_urls(args.repos_file)
+    except FileNotFoundError:
+        logger.warning("repos file not found at startup: %s", args.repos_file)
+        startup_repos = []
+    logger.info(
+        "harness starting: work_dir=%s interval=%ds repos=%s",
+        args.work_dir,
+        args.interval,
+        startup_repos,
+    )
+
     while True:
         state = load_state(state_path)
         try:
@@ -52,13 +64,18 @@ def main() -> None:
             repo_urls = []
 
         if not repo_urls:
-            logger.info("no repositories to scan, sleeping")
+            logger.info(
+                "no repositories configured or loaded (checked: %s), sleeping",
+                args.repos_file,
+            )
+        labeled_items_found = 0
         for repo_url in repo_urls:
             items = (
                 find_labeled_items(repo_url, ISSUE_LABELS)
                 + find_labeled_items(repo_url, PR_LABELS)
             )
             for item in items:
+                labeled_items_found += 1
                 item_key = f"{repo_url}:{item['kind']}:{item['number']}"
                 updated_at = item.get("updatedAt", "")
                 if not needs_processing(state, item_key, updated_at):
@@ -87,6 +104,11 @@ def main() -> None:
                 state[item_key] = fresh or updated_at
                 save_state(state_path, state)
 
+        if repo_urls and labeled_items_found == 0:
+            logger.info(
+                "scan complete: no labeled items found across %d repository/repositories",
+                len(repo_urls),
+            )
         logger.info("sleeping %d seconds", args.interval)
         time.sleep(args.interval)
 
