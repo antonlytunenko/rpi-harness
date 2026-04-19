@@ -34,5 +34,16 @@ The existing `main.py` tests validate label scanning behavior and automatic crea
 
 ## Open Questions
 
-1. Should the requested “nothing found” message appear only when **no labeled issues/PRs are returned at all**, or also when items are returned but every item is skipped because `needs_processing(...)` reports no new activity? Both are currently “no actionable work this cycle” outcomes, but the issue text does not say whether they should be messaged identically or differently (`main.py:56-66`, `harness/dedup.py:22-30`).
-2. For the startup configuration message, should “repositories” be logged as the fully resolved list of repository URLs read from `repositories.txt`, or would a summary such as the file path plus repository count satisfy the requirement? The issue asks for repositories to be shown, but not the exact presentation format.
+All open questions resolved via PR comment by `antonlytunenko` (2026-04-19, comment #4276196693) and direct operator chat observation (2026-04-19).
+
+1. ~~Should the requested "nothing found" message appear only when **no labeled issues/PRs are returned at all**, or also when items are returned but every item is skipped because `needs_processing(...)` reports no new activity?~~ **Resolved**: Both are distinct cases and must produce distinct messages. The goal is a message that is easy to interpret for the user — the two paths ("no labeled items found in this repo" vs "items found but all deduplication-skipped") should be highlighted differently so an operator can tell at a glance whether the repository has no actionable labels or whether it does but nothing new has happened since the last run. (Source: PR comment by `antonlytunenko` on 2026-04-19)
+
+2. ~~Should "repositories" in the startup message be the fully resolved list or a summary?~~ **Resolved**: Log the full list of resolved repository URIs at startup. (Source: PR comment by `antonlytunenko` on 2026-04-19)
+
+## Additional Finding: Dedup Loop Bug (out of scope for #8 messages, flag for separate issue)
+
+The operator's direct observation ("harness loop does not react to new PR comments", 2026-04-19) reveals a second latent defect in `main.py` that is independent of the message-improvement scope but worth documenting.
+
+**Root cause**: `state[item_key] = updated_at` is saved using the `updatedAt` value fetched at scan time, *before* `invoke_agent(...)` runs. When the agent posts a PR comment (e.g. a 🚀 research update), GitHub updates the PR's `updatedAt` to a later timestamp. On the next loop iteration the scanner fetches the newer `updatedAt`, `needs_processing` returns `True` (newer > stored), and the agent is invoked again. If the agent always posts a comment, the loop will perpetually re-invoke itself on the same PR — meaning genuine new human comments may never be distinguished from this background churn, and the operator perceives the loop as "not reacting" to their input because the agent is already processing on every cycle regardless.
+
+**Minimal fix (for a future ticket)**: after `invoke_agent` returns, re-fetch the PR's current `updatedAt` from the GitHub API and store *that* value (instead of the pre-run scan value). This ensures the stored timestamp is at least as recent as the agent's own comment, so a subsequent scan does not re-trigger unless a truly newer event (human comment, label change) has occurred.
