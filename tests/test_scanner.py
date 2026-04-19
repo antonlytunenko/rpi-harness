@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from harness.scanner import find_labeled_items, read_repo_urls
+from harness.scanner import fetch_updated_at, find_labeled_items, read_repo_urls
 
 
 def test_read_repo_urls_ignores_blank_lines(tmp_path):
@@ -59,3 +59,48 @@ def test_find_labeled_items_handles_gh_failure():
         items = find_labeled_items("https://github.com/owner/repo", ["agent-research"])
 
     assert items == []
+
+
+def test_fetch_updated_at_returns_timestamp_for_issue():
+    def fake_run(cmd, **kwargs):
+        m = MagicMock()
+        m.returncode = 0
+        m.stdout = '{"updatedAt": "2026-04-19T10:00:00Z"}'
+        return m
+
+    with patch("harness.scanner.subprocess.run", side_effect=fake_run) as mock_run:
+        result = fetch_updated_at("https://github.com/owner/repo", "issue", 42)
+
+    assert result == "2026-04-19T10:00:00Z"
+    called_cmd = mock_run.call_args[0][0]
+    assert called_cmd[1] == "issue"
+    assert "42" in called_cmd
+    assert "--repo" in called_cmd
+
+
+def test_fetch_updated_at_uses_pr_subcommand_for_pr():
+    def fake_run(cmd, **kwargs):
+        m = MagicMock()
+        m.returncode = 0
+        m.stdout = '{"updatedAt": "2026-04-19T11:00:00Z"}'
+        return m
+
+    with patch("harness.scanner.subprocess.run", side_effect=fake_run) as mock_run:
+        result = fetch_updated_at("https://github.com/owner/repo", "pr", 7)
+
+    assert result == "2026-04-19T11:00:00Z"
+    called_cmd = mock_run.call_args[0][0]
+    assert called_cmd[1] == "pr"
+
+
+def test_fetch_updated_at_returns_empty_string_on_failure():
+    def fake_run(cmd, **kwargs):
+        m = MagicMock()
+        m.returncode = 1
+        m.stdout = ""
+        return m
+
+    with patch("harness.scanner.subprocess.run", side_effect=fake_run):
+        result = fetch_updated_at("https://github.com/owner/repo", "pr", 7)
+
+    assert result == ""
