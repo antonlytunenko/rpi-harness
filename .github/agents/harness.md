@@ -56,12 +56,12 @@ If none of the above labels are present, respond:
 
 1. Read the PR description and linked issue body.
 2. Use `#codebase` to explore all files relevant to the issue.
-3. Write `RESEARCH.md` in the repo root with:
+3. Write `.tickets/ticket<issue_number>/RESEARCH.md` with:
    - **Problem Analysis** — what is broken or needed and why
    - **Affected Files** — list with brief role of each
    - **Technical Constraints** — language versions, dependencies, existing patterns to follow
    - **Open Questions** — anything that needs human clarification before planning
-4. `git add RESEARCH.md && git commit -m "research: initial analysis for #<number>" && git push`
+4. `git add .tickets/ticket<issue_number>/RESEARCH.md && git commit -m "research: initial analysis for #<number>" && git push`
 5. Comment on the PR: `gh pr comment --body "Research complete. RESEARCH.md committed. Please review and change label to \`agent-plan\` when ready."`
 6. **STOP. Do not proceed to planning.**
 
@@ -71,14 +71,14 @@ If none of the above labels are present, respond:
 
 **Goal**: Read `RESEARCH.md` and produce a concrete, traceable `PLAN.md`. Do not write code.
 
-1. Read `RESEARCH.md`.
-2. Write `PLAN.md` in the repo root with:
+1. Read `.tickets/ticket<issue_number>/RESEARCH.md`.
+2. Write `.tickets/ticket<issue_number>/PLAN.md` with:
    - **Phases** — ordered list of work phases
    - **Steps** — numbered tasks within each phase, each with explicit inputs and outputs
    - **Dependencies** — which steps must complete before others
    - **Verification** — how to confirm each step succeeded (commands, assertions)
    - **Scope Boundary** — explicit list of what is included and what is excluded
-3. `git add PLAN.md && git commit -m "plan: implementation plan for #<number>" && git push`
+3. `git add .tickets/ticket<issue_number>/PLAN.md && git commit -m "plan: implementation plan for #<number>" && git push`
 4. Comment on the PR: `gh pr comment --body "Plan complete. PLAN.md committed. Please review and change label to \`agent-implement\` when ready."`
 5. **STOP. Do not write any code.**
 

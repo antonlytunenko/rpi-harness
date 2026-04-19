@@ -1,5 +1,5 @@
 ---
-applyTo: RESEARCH.md
+applyTo: .tickets/ticket*/RESEARCH.md
 ---
 
 # Research Phase Constraints

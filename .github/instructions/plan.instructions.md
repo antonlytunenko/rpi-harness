@@ -1,5 +1,5 @@
 ---
-applyTo: PLAN.md
+applyTo: .tickets/ticket*/PLAN.md
 ---
 
 # Plan Phase Constraints
@@ -12,4 +12,4 @@ These rules apply whenever `PLAN.md` is the active file in context.
 - **Explicit scope boundary required.** The Included and Excluded sections must be present and non-empty.
 - **Steps must be atomic and verifiable.** Each step must have a single clear output and a verification command or observable outcome.
 - **Dependencies must be explicit.** If a step depends on another, state it — do not rely on the reader to infer ordering.
-- **Do not modify RESEARCH.md.** Read it; do not edit it.
+- **Do not modify `.tickets/ticket<issue_number>/RESEARCH.md`.** Read it; do not edit it.

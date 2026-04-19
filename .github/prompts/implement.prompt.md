@@ -12,8 +12,8 @@ You are executing the **Implement** phase of the harness workflow.
 
 ## Inputs
 
-- `PLAN.md` (required — abort if missing)
-- `RESEARCH.md` (reference for context)
+- `.tickets/ticket<issue_number>/PLAN.md` (required — abort if missing)
+- `.tickets/ticket<issue_number>/RESEARCH.md` (reference for context)
 
 ## Task
 
