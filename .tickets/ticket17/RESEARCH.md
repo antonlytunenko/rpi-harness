@@ -75,7 +75,10 @@ Each agent invocation (each call to `invoke_agent`) should run in a fresh, isola
 ## Open Questions
 
 1. **Where should the dedup state be stored?** The current `{work_dir}/.harness_state.json` location is lost on restart with a new `work_dir`. Options include: (a) a fixed well-known path independent of `work_dir`, (b) a `--state-file` CLI argument, (c) no local state (rely purely on the GitHub API — e.g., check if a 🚀 comment was already posted), or (d) keep current behavior and document that `work_dir` must be persistent.
+   **RESOLVED** (Source: PR comment by `antonlytunenko` on 2026-04-19): Check in the state file as part of the PR in `.tickets/ticket<ticket_number>/` directory.
 
 2. **Should the temp directories created by `provision()` be cleaned up after each agent run?** If yes, after `invoke_agent()` returns (success or failure), the `unique_dir` should be removed with `shutil.rmtree`. If no, callers must be aware of the disk usage growth.
+   **RESOLVED** (Source: PR comment by `antonlytunenko` on 2026-04-19): Do not clean up directories.
 
 3. **Is eliminating the state file the goal, or just making it resilient?** The issue says "every new run is stateless" — does this mean the harness process itself should carry no local state across restarts, or only that each individual agent invocation runs in a fresh directory?
+   **RESOLVED** (Source: PR comment by `antonlytunenko` on 2026-04-19): The second interpretation — each individual agent invocation runs in a fresh directory. The harness process itself may maintain persistent state (the state file) across restarts, stored in `.tickets/ticket<ticket_number>/` within the PR branch.
