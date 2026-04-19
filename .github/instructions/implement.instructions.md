@@ -11,6 +11,6 @@ These rules apply whenever source files (`.py`, `.js`, `.ts`, `.go`, `.rb`) are 
 - **Tests required for every bug fix.** Add a regression test that would have caught the bug before the fix.
 - **Never skip the test run.** After completing all steps, always execute the full test suite before declaring done.
 - **Minimal changes only.** Do not refactor, rename, or improve code that is not directly required by the active plan step.
-- **Do not modify RESEARCH.md or PLAN.md.** These are read-only references during the implement phase.
+- **Do not modify `.tickets/ticket<issue_number>/RESEARCH.md` or `.tickets/ticket<issue_number>/PLAN.md`.** These are read-only references during the implement phase.
 - **Do not push to main or master.** All commits go to the feature branch.
 - **Do not mark the PR ready until tests are green.** If tests fail after 3 iterations, comment with the failure summary and stop.
