@@ -12,7 +12,7 @@ However, when one or more repositories are configured **and** each call to `find
 
 A second quiet path exists when matching items are returned but every item is skipped by deduplication. In that case the operator may see one or more `skipping ... (no new activity)` lines, but there is still no single summary that the cycle produced no actionable work (`main.py:61-66`).
 
-The existing `main.py` tests validate label scanning behavior and automatic creation of the work directory, but they do not assert on log messages or other operator-facing output. Message behavior is therefore currently untested (`tests/test_main.py:17-78`).
+The existing `main.py` tests validate label scanning behavior, automatic creation of the work directory, and post-run timestamp persistence, but they do not assert on log messages or other operator-facing output. Message behavior is therefore currently untested (`tests/test_main.py:17-135`).
 
 ## Affected Files
 
@@ -40,10 +40,3 @@ All open questions resolved via PR comment by `antonlytunenko` (2026-04-19, comm
 
 2. ~~Should "repositories" in the startup message be the fully resolved list or a summary?~~ **Resolved**: Log the full list of resolved repository URIs at startup. (Source: PR comment by `antonlytunenko` on 2026-04-19)
 
-## Additional Finding: Dedup Loop Bug (out of scope for #8 messages, flag for separate issue)
-
-The operator's direct observation ("harness loop does not react to new PR comments", 2026-04-19) reveals a second latent defect in `main.py` that is independent of the message-improvement scope but worth documenting.
-
-**Root cause**: `state[item_key] = updated_at` is saved using the `updatedAt` value fetched at scan time, *before* `invoke_agent(...)` runs. When the agent posts a PR comment (e.g. a 🚀 research update), GitHub updates the PR's `updatedAt` to a later timestamp. On the next loop iteration the scanner fetches the newer `updatedAt`, `needs_processing` returns `True` (newer > stored), and the agent is invoked again. If the agent always posts a comment, the loop will perpetually re-invoke itself on the same PR — meaning genuine new human comments may never be distinguished from this background churn, and the operator perceives the loop as "not reacting" to their input because the agent is already processing on every cycle regardless.
-
-**Minimal fix (for a future ticket)**: after `invoke_agent` returns, re-fetch the PR's current `updatedAt` from the GitHub API and store *that* value (instead of the pre-run scan value). This ensures the stored timestamp is at least as recent as the agent's own comment, so a subsequent scan does not re-trigger unless a truly newer event (human comment, label change) has occurred.
