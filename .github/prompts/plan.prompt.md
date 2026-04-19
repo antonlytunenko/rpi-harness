@@ -78,9 +78,27 @@ git push
 gh pr comment --body "Plan complete. .tickets/ticket<issue_number>/PLAN.md committed. Please review and change label to \`agent-implement\` when ready."
 ```
 
+## Iteration (re-invocation)
+
+If this is a re-invocation (the agent is called again while the PR still has `agent-plan`):
+
+1. Fetch PR comments: `gh pr view --json comments --jq '.comments[] | {id: .databaseId, body: .body}'`
+2. Identify unprocessed human comments: body does **not** contain 🚀 **and** does not have a 👀 reaction.
+3. If unprocessed human comments exist **and** `.tickets/ticket<issue_number>/PLAN.md` already exists:
+   a. Re-read `.tickets/ticket<issue_number>/PLAN.md` in full.
+   b. For each unprocessed comment, identify the feedback it provides.
+   c. Mark each comment with a 👀 reaction: `gh api repos/{owner}/{repo}/issues/comments/{comment_id}/reactions -f content=eyes`
+   d. Update `PLAN.md` — add or modify steps as needed, appending a "Source: PR comment by `<author>` on `<date>`" note.
+   e. Commit and push: `git add .tickets/ticket<issue_number>/PLAN.md && git commit -m "plan: update with human feedback for #<N>" && git push`
+   f. Post a PR comment summarising changes made. **Append 🚀 to the comment body.**
+   g. **STOP.**
+4. If no unprocessed human comments or `PLAN.md` does not exist yet, run the normal first-run task below.
+
 ## Constraints
 
 - Do **not** write any source code or test code.
 - Every step must reference findings from `.tickets/ticket<issue_number>/RESEARCH.md` — no speculation beyond the research scope.
+- PR comment findings are also valid sources, provided they are cited with the comment author and date.
 - Do **not** modify `.tickets/ticket<issue_number>/RESEARCH.md`.
 - Scope boundary (included/excluded) must be explicit and complete.
+- **Append 🚀 to every PR comment** this agent posts.
