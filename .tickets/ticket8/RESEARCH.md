@@ -31,7 +31,12 @@ Current unit coverage around the loop checks label selection, automatic work-dir
 ## Open Questions
 
 1. Should the configuration summary be emitted once when the process starts, or at the beginning of every polling cycle? The current code has no existing startup-summary hook beyond the loop itself, so the intended frequency is not specified in the issue text. (`main.py:22-46`)
+   **Resolved**: Emit once when the process starts. (Source: PR comment by `antonlytunenko` on 2026-04-19)
+
 2. Should the new "nothing found" message cover both cases below, or only one of them?
    - no repositories were configured or read successfully (`main.py:49-55`)
    - repositories were scanned but no labeled issues or PRs were returned (`main.py:56-90`)
+   **Resolved**: Both cases, but with distinct messages so each is easy to tell apart. (Source: PR comment by `antonlytunenko` on 2026-04-19)
+
 3. When reporting repositories in the startup output, should the message include the full normalized repository URL list from `read_repo_urls()`, or only a count or path reference? The issue requests "repositories," but the exact level of detail is not defined. (`harness/scanner.py:8-16`, `README.md:32-42`)
+   **Resolved**: Include the full normalized repository URL list. (Source: PR comment by `antonlytunenko` on 2026-04-19)
