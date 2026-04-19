@@ -1,27 +1,37 @@
-# Research: Improve Messages from Harness Loop (Issue #8)
+# Research for Issue #8
 
 ## Problem Analysis
 
-- The run loop exposes the configured inputs via CLI arguments (`--repos-file`, `--work-dir`, `--interval`), creates the work directory, and then immediately enters the polling loop, but it never logs the resolved configuration values at startup. There is currently no message that tells the operator which work directory, interval, or repository list the process is using. (`main.py:23-44`)
-- The only explicit "nothing to do" message today is `no repositories to scan, sleeping`, which is emitted only when the repository list is empty after reading `repositories.txt`. If configured repositories are present but none of them produce matching issues or PRs, the loop falls through to the generic `sleeping %d seconds` log with no message explaining that no actionable items were found. (`main.py:48-60`, `main.py:90-91`)
-- The loop already emits per-item logs for `skipping`, `processing`, `provision failed`, and `agent exited`, so the missing operator feedback is specifically at startup and at the "zero matches this cycle" case rather than in the per-item processing path. (`main.py:64-80`)
-- Existing tests for `main.py` cover label routing, automatic work-dir creation, and post-run timestamp refresh, but they do not assert any logging output or any behavior for a scan cycle that finds zero actionable items. There is no current regression coverage for the messaging requested in Issue #8. (`tests/test_main.py:17-135`)
+Issue #8 asks for clearer harness-loop messaging: startup output that shows configuration (work directory, poll interval, and repositories) and an explicit message when a scan finds nothing to work on.
+
+The polling loop currently parses `--repos-file`, `--work-dir`, and `--interval`, creates the work directory, and then enters an infinite scan/sleep cycle, but its existing info-level logs are limited to `no repositories to scan, sleeping`, `skipping %s (no new activity)`, `processing %s`, `agent exited with code %d for %s`, and `sleeping %d seconds`. There is no current info-level log that announces the configured work directory, poll interval, or repository list at process start. (`main.py:23-42`, `main.py:54-55`, `main.py:65`, `main.py:68`, `main.py:80`, `main.py:90`)
+
+Repository URLs are loaded from the repos file on each loop iteration, and the loader removes blank lines, strips surrounding whitespace, and ignores comment lines. Any startup message about repositories will therefore need to reflect this normalized list rather than the raw file contents. (`main.py:47-52`, `harness/scanner.py:8-16`)
+
+When repositories are configured, the loop scans each repository for matching issues and PRs and only emits per-item logs for skipped or processed items. If every configured repository yields zero matching labeled items, control flows directly to the final sleep log without a separate summary that nothing actionable was found during that scan. (`main.py:56-90`)
+
+Current unit coverage around the loop checks label selection, automatic work-directory creation, and post-run `updatedAt` persistence, but it does not assert any startup or empty-scan logging behaviour. Message changes in `main.py` are therefore not covered by existing tests yet. (`tests/test_main.py:17-135`)
 
 ## Affected Files
 
-| File | Role |
-| --- | --- |
-| `main.py` | Defines the CLI arguments, startup setup, polling loop, and all current operator-facing log messages. The requested startup/configuration and "nothing found" messaging would be emitted from this file. (`main.py:23-91`) |
-| `tests/test_main.py` | Existing unit tests exercise `main()` behavior and are the natural place to add regression coverage for any new logging or zero-match-cycle behavior. (`tests/test_main.py:17-135`) |
-| `README.md` | Documents the runtime arguments and examples for `--work-dir`, `--repos-file`, and `--interval`; it may need to stay aligned if operator-visible startup messaging is documented or illustrated. (`README.md:44-90`) |
+- `main.py` — owns CLI argument parsing, loop control flow, repository loading, scan execution, and all current run-loop logging that Issue #8 is asking to clarify. (`main.py:23-91`)
+- `harness/scanner.py` — defines how repository URLs are read and normalized before the loop can report them. (`harness/scanner.py:8-16`)
+- `tests/test_main.py` — current loop-focused test file; likely touchpoint for any new assertions about emitted messages because existing tests already patch the loop collaborators. (`tests/test_main.py:17-135`)
+- `README.md` — documents the CLI arguments and their defaults, which are the same configuration values Issue #8 asks the loop to report more explicitly. (`README.md:44-79`)
+- `pyproject.toml` — records the supported Python version and pytest development dependency that constrain how new tests can be added. (`pyproject.toml:1-15`)
 
 ## Technical Constraints
 
-- The project targets Python `>=3.11` and currently has no runtime dependencies declared, so any change should fit the existing stdlib-based approach already used in `main.py`. (`pyproject.toml:1-15`)
-- `--work-dir` is required, while `--repos-file` defaults to `repositories.txt` and `--interval` defaults to `300`; these values are part of both the code-level CLI contract and the README usage documentation. (`main.py:23-39`, `README.md:44-72`)
-- The loop creates `work_dir`, stores dedup state at `<work-dir>/.harness_state.json`, and then reloads state on each polling cycle. Any added messaging must coexist with that long-running loop structure. (`main.py:42-47`)
-- The documented test runner is `pytest -q`, and the repository already includes pytest as a development dependency. (`README.md:87-90`, `pyproject.toml:9-15`)
+- The project targets Python 3.11 or newer. Any research follow-up, plan, or implementation must remain compatible with that baseline. (`pyproject.toml:1-7`)
+- The project has no declared runtime dependencies and uses only the standard library in the run loop today, so any future message changes should fit the existing standard-library logging approach unless a human explicitly approves broader scope. (`pyproject.toml:7-15`, `main.py:4-15`)
+- Logging in the entry point is configured globally through `logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")`, so new loop messages would inherit that timestamp/level/message format rather than defining a custom formatter inside the loop. (`main.py:14-15`)
+- Repository scanning depends on `read_repo_urls()` plus repeated `find_labeled_items()` calls for issue labels and PR labels; any future work in this area needs to preserve the current split between `ISSUE_LABELS` and `PR_LABELS`. (`main.py:17-18`, `main.py:49-60`, `tests/test_main.py:17-49`)
+- The documented test command is `pytest -q`, and pytest is the only declared development dependency. (`README.md:87-90`, `pyproject.toml:9-15`)
 
 ## Open Questions
 
-None at this stage.
+1. Should the configuration summary be emitted once when the process starts, or at the beginning of every polling cycle? The current code has no existing startup-summary hook beyond the loop itself, so the intended frequency is not specified in the issue text. (`main.py:22-46`)
+2. Should the new "nothing found" message cover both cases below, or only one of them?
+   - no repositories were configured or read successfully (`main.py:49-55`)
+   - repositories were scanned but no labeled issues or PRs were returned (`main.py:56-90`)
+3. When reporting repositories in the startup output, should the message include the full normalized repository URL list from `read_repo_urls()`, or only a count or path reference? The issue requests "repositories," but the exact level of detail is not defined. (`harness/scanner.py:8-16`, `README.md:32-42`)
