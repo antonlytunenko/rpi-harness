@@ -28,5 +28,10 @@ At present, the repository does not implement bootstrap logic in Python (`main.p
 ## Open Questions
 
 1. When determining whether an issue already has an open PR, what GitHub relationship should the harness treat as authoritative: PR body text such as `Closes #<issue>`, explicit linked issues metadata, branch naming convention, or some combination?
+   **Resolved**: Use explicit linked issue metadata. Source: PR comment by `antonlytunenko` on 2026-04-19.
+
 2. Should the fix for issue #14 be limited to updating the harness/spec wording, or should planning also include adding executable bootstrap logic that enforces the same "ignore closed PRs; block on open PRs only" rule in Python?
+   **Resolved**: Address only harness/spec wording — no Python implementation changes. Source: PR comment by `antonlytunenko` on 2026-04-19.
+
 3. If multiple historical PRs are closed and none are open, should the replacement PR always reuse the standard branch naming pattern (`issue-<number>/<slug>`), or should the workflow define a collision strategy for recreating work after a prior attempt?
+   **Resolved**: Define a simple collision strategy. Source: PR comment by `antonlytunenko` on 2026-04-19.
