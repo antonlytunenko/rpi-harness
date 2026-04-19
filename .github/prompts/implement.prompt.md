@@ -17,14 +17,22 @@ You are executing the **Implement** phase of the harness workflow.
 
 ## Task
 
-### Step 0 — Validate prerequisites
+### Step 0 — Read human comments and validate prerequisites
 
-1. Read `.tickets/ticket<issue_number>/PLAN.md` in full.
-2. Read `.tickets/ticket<issue_number>/RESEARCH.md` for context.
-3. Detect the test runner:
+1. Fetch PR comments: `gh pr view --json comments --jq '.comments[] | {id: .databaseId, body: .body}'`
+2. Identify unprocessed human comments: body does **not** contain 🚀 **and** does not have a 👀 reaction.
+3. If unprocessed human comments exist:
+   a. Read each comment and note any additional constraints, requirements, or clarifications.
+   b. Mark each with a 👀 reaction: `gh api repos/{owner}/{repo}/issues/comments/{comment_id}/reactions -f content=eyes`
+   c. Incorporate these constraints when implementing the relevant plan steps. Cite each in the commit message if it directly influences a change: `(per PR comment by <author> <date>)`.
+4. Read `.tickets/ticket<issue_number>/PLAN.md` in full.
+5. Read `.tickets/ticket<issue_number>/RESEARCH.md` for context.
+6. Detect the test runner:
    - If `pyproject.toml` or `setup.py` exists → test command is `pytest -q`
    - If `package.json` exists → test command is `npm test`
    - Otherwise → comment on PR asking human to specify and stop.
+
+**All agent PR comments in this phase must include 🚀.**
 
 ### Step 1 — Implement each plan step
 
@@ -78,7 +86,7 @@ After all steps are implemented:
 ```
 git push
 gh pr ready
-gh pr comment --body "Implementation complete. All tests pass. Ready for human review."
+gh pr comment --body "Implementation complete. All tests pass. Ready for human review. 🚀"
 ```
 
 **STOP.**
@@ -95,7 +103,7 @@ gh pr comment --body "⚠️ Tests still failing after 3 fix iterations. Failure
 <full test output from last run>
 \`\`\`
 
-Human intervention required."
+Human intervention required. 🚀"
 ```
 
 **STOP. Do not attempt further fixes.**

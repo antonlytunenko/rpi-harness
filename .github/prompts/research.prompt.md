@@ -59,8 +59,26 @@ git push
 gh pr comment --body "Research complete. RESEARCH.md committed. Please review open questions and change label to \`agent-plan\` when ready."
 ```
 
+## Iteration (re-invocation)
+
+If this is a re-invocation (the agent is called again while the PR still has `agent-research`):
+
+1. Fetch PR comments: `gh pr view --json comments --jq '.comments[] | {id: .databaseId, body: .body}'`
+2. Identify unprocessed human comments: body does **not** contain 🚀 **and** does not have a 👀 reaction.
+   - If no 🚀 comment exists yet, treat all human comments as unprocessed.
+3. If unprocessed human comments exist:
+   a. Re-read `.tickets/ticket<issue_number>/RESEARCH.md` in full.
+   b. For each unprocessed comment, identify which open question it answers or what new finding it introduces.
+   c. Mark each comment with a 👀 reaction: `gh api repos/{owner}/{repo}/issues/comments/{comment_id}/reactions -f content=eyes`
+   d. Update the Open Questions section of `RESEARCH.md` — mark resolved questions with their answers, citing comment author and date.
+   e. Commit and push: `git add .tickets/ticket<issue_number>/RESEARCH.md && git commit -m "research: update with human feedback for #<N>" && git push`
+   f. Post a PR comment summarising which questions were resolved. **Append 🚀 to the comment body.**
+   g. **STOP.**
+4. If no unprocessed human comments, run the normal first-run task below.
+
 ## Constraints
 
 - Do **not** write any implementation code or propose concrete solutions.
 - Do **not** create or modify any source files other than `.tickets/ticket<issue_number>/RESEARCH.md`.
 - If the open questions section is empty, write "None — ready to plan."
+- **Append 🚀 to every PR comment** this agent posts.

@@ -12,3 +12,4 @@ These rules apply whenever `RESEARCH.md` is the active file in context.
 - **Cite sources.** Every claim about the codebase must reference a specific file and line number.
 - **Flag unknowns.** If anything is ambiguous or unclear, add it to the Open Questions section rather than assuming.
 - **Scope conservatively.** When uncertain whether a file is affected, list it with a note rather than excluding it.
+- **On re-invocation (iteration mode), PR comments that answer open questions are valid findings.** Incorporate the answer into `RESEARCH.md`, cite the comment author and date, and mark the question as resolved.
