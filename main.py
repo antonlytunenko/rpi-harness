@@ -6,9 +6,8 @@ import logging
 import pathlib
 import time
 
-from harness.dedup import load_state, needs_processing, save_state
 from harness.runner import invoke_agent
-from harness.scanner import fetch_updated_at, find_labeled_items, read_repo_urls
+from harness.scanner import find_labeled_items, read_repo_urls
 from harness.workspace import provision
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -41,8 +40,6 @@ def main() -> None:
 
     pathlib.Path(args.work_dir).mkdir(parents=True, exist_ok=True)
 
-    state_path = str(pathlib.Path(args.work_dir) / ".harness_state.json")
-
     try:
         startup_repos = read_repo_urls(args.repos_file)
     except FileNotFoundError:
@@ -56,7 +53,6 @@ def main() -> None:
     )
 
     while True:
-        state = load_state(state_path)
         try:
             repo_urls = read_repo_urls(args.repos_file)
         except FileNotFoundError:
@@ -77,11 +73,6 @@ def main() -> None:
             for item in items:
                 labeled_items_found += 1
                 item_key = f"{repo_url}:{item['kind']}:{item['number']}"
-                updated_at = item.get("updatedAt", "")
-                if not needs_processing(state, item_key, updated_at):
-                    logger.info("skipping %s (no new activity)", item_key)
-                    continue
-
                 logger.info("processing %s", item_key)
                 prompt = (
                     f"Run harness for {item['kind']} #{item['number']} "
@@ -95,14 +86,6 @@ def main() -> None:
 
                 exit_code = invoke_agent(str(clone_path), prompt)
                 logger.info("agent exited with code %d for %s", exit_code, item_key)
-
-                # Re-fetch updatedAt so that any comment the agent posted during
-                # the run is accounted for.  Without this the stored timestamp is
-                # older than the agent's own 🚀 comment, causing needs_processing()
-                # to return True on the very next scan and re-trigger indefinitely.
-                fresh = fetch_updated_at(repo_url, item["kind"], item["number"])
-                state[item_key] = fresh or updated_at
-                save_state(state_path, state)
 
         if repo_urls and labeled_items_found == 0:
             logger.info(
