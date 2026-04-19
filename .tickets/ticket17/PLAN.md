@@ -7,10 +7,25 @@ The resolution (per human feedback on 2026-04-19) is:
 
 1. **No state file** — since the Python loop won't read or write it, there is no reason
    to create one at all. Removing the state file from scope entirely.
-2. **Label-based dedup** — the Python loop moves to a purely label-based model: if an
-   item carries a phase label it is processed; the agent is responsible for idempotency
-   when nothing has changed.
-3. Temp-directory cleanup is explicitly **out of scope** per research resolution.
+2. **Label-based, unconditional processing** — the Python loop moves to a purely
+   label-based model: if an item carries a phase label it is processed **on every poll
+   cycle**. There is no change-detection at the harness level.
+3. **Agent-level idempotency handles "nothing new"** — each agent invocation begins
+   with Step 0 (comment detection). If it finds no unprocessed human comments (no new
+   comments since the last 👀 reaction was applied), it reaches STOP within seconds
+   without invoking any expensive operations. This is the correct layer for dedup: the
+   harness dispatches unconditionally; the agent decides whether real work is needed.
+4. Temp-directory cleanup is explicitly **out of scope** per research resolution.
+
+### Why no harness-level change detection?
+
+All meaningful user actions — new comment, new review comment, label change — update the
+GitHub item's `updated_at` field. The original dedup compared `updated_at` against a
+locally cached timestamp. That cache is unreliable because it was stored in the ephemeral
+`work_dir`. Replacing it with a GitHub-based approach (e.g., compare `updated_at` against
+the timestamp of the last 🚀 comment) would work but adds complexity with no clear
+benefit: agent Step 0 already provides correct idempotency at low cost. Processing every
+labeled item unconditionally keeps the harness loop simple and correct.
 
 Source: PR comments by `antonlytunenko` on 2026-04-19.
 
