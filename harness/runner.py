@@ -15,7 +15,7 @@ def invoke_agent(repo_path: str, prompt: str) -> int:
         The process exit code.
     """
     result = subprocess.run(
-        ["gh", "copilot", "suggest", "-t", "shell", prompt],
+        ["gh", "copilot", "--", "-p", prompt, "--allow-all-tools"],
         cwd=repo_path,
     )
     return result.returncode

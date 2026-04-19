@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, call, patch
 from harness.runner import invoke_agent
 
 
-def test_invoke_agent_calls_gh_copilot_suggest():
+def test_invoke_agent_calls_gh_copilot_with_prompt():
     mock_result = MagicMock()
     mock_result.returncode = 0
 
@@ -13,9 +13,10 @@ def test_invoke_agent_calls_gh_copilot_suggest():
 
     args, kwargs = mock_run.call_args
     cmd = args[0]
-    assert cmd[:4] == ["gh", "copilot", "suggest", "-t"]
-    assert "shell" in cmd
+    assert cmd[:3] == ["gh", "copilot", "--"]
+    assert "-p" in cmd
     assert "run harness" in cmd
+    assert "--allow-all-tools" in cmd
 
 
 def test_invoke_agent_passes_cwd(tmp_path):
