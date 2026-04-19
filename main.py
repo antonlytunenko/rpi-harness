@@ -14,7 +14,8 @@ from harness.workspace import provision
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-AGENT_LABELS = ["agent-research", "agent-plan", "agent-implement"]
+ISSUE_LABELS = ["agent-ready"]
+PR_LABELS = ["agent-research", "agent-plan", "agent-implement"]
 HARNESS_ROOT = str(pathlib.Path(__file__).parent)
 
 
@@ -38,6 +39,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    pathlib.Path(args.work_dir).mkdir(parents=True, exist_ok=True)
+
     state_path = str(pathlib.Path(args.work_dir) / ".harness_state.json")
 
     while True:
@@ -48,8 +51,13 @@ def main() -> None:
             logger.warning("repos file not found: %s", args.repos_file)
             repo_urls = []
 
+        if not repo_urls:
+            logger.info("no repositories to scan, sleeping")
         for repo_url in repo_urls:
-            items = find_labeled_items(repo_url, AGENT_LABELS)
+            items = (
+                find_labeled_items(repo_url, ISSUE_LABELS)
+                + find_labeled_items(repo_url, PR_LABELS)
+            )
             for item in items:
                 item_key = f"{repo_url}:{item['kind']}:{item['number']}"
                 updated_at = item.get("updatedAt", "")
