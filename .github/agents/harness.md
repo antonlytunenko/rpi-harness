@@ -32,7 +32,7 @@ Map labels to phases:
 | `agent-plan` | Plan |
 | `agent-implement` | Implement |
 
-If no PR exists yet and the issue has label `agent-ready`, create the branch, PR, and apply `agent-research`.
+If the issue has label `agent-ready` and no **open** PR is linked to it (checked via explicit linked-issue metadata: `gh pr list --state open --json number,closingIssuesReferences --jq '.[] | select(.closingIssuesReferences[].number == <issue_number>)'`), create the branch, PR, and apply `agent-research`. If a closed PR exists but no open one, treat the issue as restartable and proceed with bootstrap. If an open PR already exists, skip bootstrap.
 
 If none of the above labels are present, respond:
 > "No active agent phase detected. Please apply one of: `agent-ready`, `agent-research`, `agent-plan`, or `agent-implement` to the relevant issue or PR."
@@ -75,8 +75,25 @@ gh api repos/{owner}/{repo}/issues/comments/{comment_id}/reactions -f content=ey
 
 ## Phase: Bootstrap (issue labeled `agent-ready`)
 
+### Branch naming on restart
+
+If `git checkout -b issue-<number>/<slug>` fails because the branch already exists
+(closed-PR scenario), append a numeric suffix:
+
+  issue-<number>/<slug>-2
+  issue-<number>/<slug>-3
+  …
+
+Try up to suffix `-9`; if all are taken, abort with an error message.
+
+0. **Guard** — check for an existing open PR linked to the issue:
+   ```
+   gh pr list --state open --json number,closingIssuesReferences \
+     --jq '.[] | select(.closingIssuesReferences[].number == <issue_number>)'
+   ```
+   If any result is returned, **STOP** — do not create a branch or PR.
 1. Identify the issue: `gh issue list --label agent-ready --json number,title,body`
-2. Create a branch: `git checkout -b issue-<number>/<slug>`
+2. Create a branch: `git checkout -b issue-<number>/<slug>` (see **Branch naming on restart** above if the branch already exists)
 3. Push and open a draft PR: `gh pr create --draft --title "<issue title>" --body "Closes #<number>"`
 4. Apply label: `gh pr edit --add-label agent-research`
 5. Remove label from issue: `gh issue edit <number> --remove-label agent-ready`

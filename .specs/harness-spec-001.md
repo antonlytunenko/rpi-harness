@@ -3,7 +3,7 @@
 
 ## **1. Core Logic (The State Machine)**
 The script must poll the GitHub CLI (`gh`) and move tasks through these states based on **PR Labels**:
-* **Trigger:** Issue labeled `agent-ready` + No PR exists → Create Branch/PR → Label `agent-research`.
+* **Trigger:** Issue labeled `agent-ready` + No **open** PR linked to the issue (by explicit linked-issue metadata) → Create Branch/PR → Label `agent-research`. Closed historical PRs do not block restart.
 * **State: `agent-research`** * **Action:** Agent analyzes the codebase and generates `RESEARCH.md`.
     * **Harness Sensor:** Tags the Issue creator for review.
 * **State: `agent-plan`** (Triggered by Human label change)
