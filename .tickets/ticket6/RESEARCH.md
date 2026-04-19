@@ -37,16 +37,25 @@ No `repositories.txt` file exists yet — it must be created as part of implemen
 
 ## Open Questions
 
-1. **Copilot CLI invocation**: What is the correct, portable command to invoke the GitHub Copilot CLI agent with a given prompt? The binary at the VS Code extension path does not work standalone. Does the user expect a `gh copilot` extension, a `github-copilot-cli` npm package, or a different mechanism? Source: codebase investigation (April 19, 2026).
+All questions resolved via PR review by `antonlytunenko` on 2026-04-19 (review ID 4135825608).
 
-2. **repositories.txt format**: Should the file contain just `owner/repo` slugs (one per line), or full GitHub URLs? The issue body says "one repository per line" without specifying the format.
+1. **Copilot CLI invocation**: What is the correct, portable command to invoke the GitHub Copilot CLI agent with a given prompt?
+   **Answer**: Use `gh copilot`.
+
+2. **repositories.txt format**: Should the file contain just `owner/repo` slugs (one per line), or full GitHub URLs?
+   **Answer**: Full GitHub URLs (one per line).
 
 3. **Poll interval N**: Should N be a required CLI argument, an optional argument with a default, or read from a config file?
+   **Answer**: Optional CLI argument with a default of 5 minutes.
 
-4. **Deduplication**: If a matching issue/PR was already processed in a previous poll cycle, should the script skip it (e.g. by tracking processed numbers) or create a new working directory each time?
+4. **Deduplication**: If a matching issue/PR was already processed in a previous poll cycle, should the script skip it or create a new working directory each time?
+   **Answer**: Check whether there was new activity after the latest code push. Skip if no new activity.
 
-5. **Harness repository identity**: Step 2.2 says "clone this (harness repository)". Should the script infer the harness repo from its own `git remote`, hard-code it, or accept it as an argument?
+5. **Harness repository identity**: Should the script infer the harness repo from its own `git remote`, hard-code it, or accept it as an argument?
+   **Answer**: Hard-code it for now.
 
-6. **gh auth context**: The script will run `gh` CLI sub-processes. Should it inherit the calling user's `gh` auth token, or is a separate API token expected (env var `GITHUB_TOKEN`)?
+6. **gh auth context**: Should the script inherit the calling user's `gh` auth token, or use a separate `GITHUB_TOKEN`?
+   **Answer**: Inherit the calling user's `gh` auth (no separate token needed).
 
-7. **Error handling on clone/copy failures**: What should happen if cloning the target repository fails (private repo, network error)? Should the script log and skip, or abort the loop?
+7. **Error handling on clone/copy failures**: What should happen if cloning the target repository fails?
+   **Answer**: Log the error and skip — do not abort the loop.
