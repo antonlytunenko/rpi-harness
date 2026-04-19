@@ -48,3 +48,28 @@ def find_labeled_items(repo_url: str, labels: list[str]) -> list[dict]:
                 items.append(entry)
 
     return items
+
+
+def fetch_updated_at(repo_url: str, kind: str, number: int) -> str:
+    """Return the current ``updatedAt`` ISO string for *kind* #*number* in *repo_url*.
+
+    Returns an empty string on failure so callers can fall back gracefully.
+    """
+    subcommand = "issue" if kind == "issue" else "pr"
+    result = subprocess.run(
+        [
+            "gh",
+            subcommand,
+            "view",
+            str(number),
+            "--repo",
+            repo_url,
+            "--json",
+            "updatedAt",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return json.loads(result.stdout).get("updatedAt", "")
+    return ""

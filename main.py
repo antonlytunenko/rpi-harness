@@ -8,7 +8,7 @@ import time
 
 from harness.dedup import load_state, needs_processing, save_state
 from harness.runner import invoke_agent
-from harness.scanner import find_labeled_items, read_repo_urls
+from harness.scanner import fetch_updated_at, find_labeled_items, read_repo_urls
 from harness.workspace import provision
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -79,7 +79,12 @@ def main() -> None:
                 exit_code = invoke_agent(str(clone_path), prompt)
                 logger.info("agent exited with code %d for %s", exit_code, item_key)
 
-                state[item_key] = updated_at
+                # Re-fetch updatedAt so that any comment the agent posted during
+                # the run is accounted for.  Without this the stored timestamp is
+                # older than the agent's own 🚀 comment, causing needs_processing()
+                # to return True on the very next scan and re-trigger indefinitely.
+                fresh = fetch_updated_at(repo_url, item["kind"], item["number"])
+                state[item_key] = fresh or updated_at
                 save_state(state_path, state)
 
         logger.info("sleeping %d seconds", args.interval)
