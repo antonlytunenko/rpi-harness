@@ -2,35 +2,54 @@
 
 ## Overview
 
-The dedup state file is currently anchored to the ephemeral `--work-dir`, which means
-it is lost whenever the harness restarts with a new directory. The fix is to decouple
-the state file path from `work_dir` by computing it from `HARNESS_ROOT` and the fixed
-ticket number directly in Python — no CLI argument. The initial empty state file is
-created by the harness agent (copilot) as part of this PR; the harness Python code only
-reads/writes it. Temp-directory cleanup is explicitly **out of scope** per research
-resolution.
+The dedup state file is tied to the ephemeral `--work-dir` and can be lost on restart.
+The resolution (per human feedback on 2026-04-19) is that the **harness loop Python
+code must not manage the state file at all** — no reading, no writing. State lifecycle
+(creation → update after each processing step) is exclusively owned by the harness
+copilot agent (the mode instructions in harness.md). The Python loop moves to a
+purely label-based dedup model: if an item carries a phase label it is processed; the
+agent is responsible for idempotency when nothing has changed. Temp-directory cleanup
+is explicitly **out of scope** per research resolution.
 
-Source: PR comment by `antonlytunenko` on 2026-04-19 — "State file PATH can not be
-passed as an argument, because this path is TICKET specific. … state file should be
-established by harness agent, not by harness loop python code."
+Source: PR comments by `antonlytunenko` on 2026-04-19 —  
+"Harness loop (python code) must not manage state file at all. It must be managed by
+harness copilot agent (harness.md): from creation to state update after each
+processing step."
 
 ---
 
-## Phase 1: Replace the ephemeral `state_path` computation in `main.py`
+## Phase 1: Remove all state file management from `main.py`
 
-### Step 1.1 — Remove the `work_dir`-relative `state_path` line
+### Step 1.1 — Delete the `state_path` constant and all state load/save calls
 
-**Input**: Line `state_path = str(pathlib.Path(args.work_dir) / ".harness_state.json")`
-in `main.py`  
-**Output**: Replace it with
-`state_path = str(pathlib.Path(__file__).parent / ".tickets" / "ticket17" / "harness_state.json")`  
+**Input**: `main.py` — the following lines exist:
+- `from harness.dedup import load_state, needs_processing, save_state` (import)
+- `state_path = str(pathlib.Path(args.work_dir) / ".harness_state.json")`
+- `state = load_state(state_path)` inside the loop
+- `if not needs_processing(state, item_key, updated_at): … continue`
+- `fresh = fetch_updated_at(…)` and `state[item_key] = fresh or updated_at`
+- `save_state(state_path, state)`
+
+**Output**:
+- Remove the `load_state`, `needs_processing`, `save_state` names from the
+  `harness.dedup` import (leave `harness.dedup` importable if still needed elsewhere,
+  or drop the import entirely if nothing else in `main.py` uses it)
+- Remove the `state_path = …` line
+- Remove `state = load_state(state_path)` from the loop
+- Remove the `needs_processing` guard block (every labeled item is now processed)
+- Remove `fresh = fetch_updated_at(…)`, `state[item_key] = …`, `save_state(…)`
+- Remove `fetch_updated_at` from the `harness.scanner` import if it is now unused
+
 **Dependency**: None  
-**Verification**: `grep "work_dir.*harness_state" main.py` returns no output;
-`grep "ticket17/harness_state" main.py` returns the new line
+**Verification**:
+```
+grep -n "state_path\|load_state\|save_state\|needs_processing\|fetch_updated_at" main.py
+```
+returns no output
 
 ---
 
-## Phase 2: Create and commit the initial state file
+## Phase 2: Create and commit the initial state file (agent-owned artifact)
 
 ### Step 2.1 — Create `.tickets/ticket17/harness_state.json`
 
@@ -39,40 +58,40 @@ in `main.py`
 **Dependency**: None (independent of Phase 1)  
 **Verification**: `cat .tickets/ticket17/harness_state.json` prints `{}`
 
-Source: RESEARCH.md resolution — "check in state file as part of the PR in
-`.tickets/ticket17/` directory." This file is established by the harness agent as
-part of this PR, not by any runtime Python code.
+Note: this file is established by this harness agent run as part of the PR. It is the
+initial state artifact that future harness agent invocations will read and update via
+git commits. No Python runtime code creates, reads, or modifies it.
 
 ---
 
-## Phase 3: Update and add tests
+## Phase 3: Update tests
 
-### Step 3.1 — Verify existing tests are unaffected
+### Step 3.1 — Remove or update mocks that reference the removed state helpers
 
-**Input**: `tests/test_main.py`, `tests/test_dedup.py`  
-**Output**: All existing tests still pass; no test body changes required (existing
-tests mock `load_state`/`save_state` and do not depend on `state_path`)  
-**Dependency**: Phase 1 complete  
-**Verification**: `pytest tests/test_main.py tests/test_dedup.py -q` exits 0
-
-### Step 3.2 — Add a test for the hardcoded `state_path` value
-
-**Input**: `tests/test_main.py`  
-**Output**: New test `test_state_path_is_within_harness_root` that calls
-`build_state_path()` (a thin helper extracted from `main.py` in Step 1.1) or
-inspects the constant directly, asserting it contains `ticket17/harness_state.json`
-and is an absolute path  
+**Input**: `tests/test_main.py` — likely contains `patch("main.load_state")`,
+`patch("main.save_state")`, `patch("main.needs_processing")`,
+`patch("main.fetch_updated_at")` calls, and any assertions on `state_path`  
+**Output**: All such patches and assertions removed or replaced with the new
+no-state-file behaviour  
 **Dependency**: Step 1.1  
-**Verification**: New test is collected and passes
+**Verification**: `pytest tests/test_main.py -q` exits 0 with no skipped tests
+
+### Step 3.2 — Verify dedup unit tests are unaffected
+
+**Input**: `tests/test_dedup.py`  
+**Output**: No changes required (the dedup module itself is unchanged; only `main.py`
+stopped calling it)  
+**Dependency**: None  
+**Verification**: `pytest tests/test_dedup.py -q` exits 0
 
 ---
 
 ## Dependency Summary
 
 ```
-Step 1.1 → Step 3.2
+Step 1.1 → Step 3.1
 Step 2.1 (independent)
-Steps 1.1, 2.1 → Step 3.1
+Step 3.2 (independent)
 ```
 
 ---
@@ -81,17 +100,19 @@ Steps 1.1, 2.1 → Step 3.1
 
 ### Included
 
-- Replacement of the `work_dir`-relative `state_path` line in `main.py` with a
-  hardcoded path derived from `__file__` and the ticket number
+- Removal of all state file load/save/path logic from `main.py`
+- Removal of any now-unused imports in `main.py` (`load_state`, `save_state`,
+  `needs_processing`, `fetch_updated_at`)
 - Initial empty state file at `.tickets/ticket17/harness_state.json` (created by
-  the agent as part of this PR)
-- One new unit test verifying the hardcoded state path
+  this agent as part of the PR; not touched by Python runtime code)
+- Test updates to reflect the no-state-file model
 
 ### Excluded
 
-- Any `--state-file` CLI argument (explicitly rejected per human feedback)
-- Temp-directory cleanup after `invoke_agent()` (explicitly decided not to implement;
-  see RESEARCH.md resolution for question 2)
-- Changes to `harness/dedup.py`, `harness/workspace.py`, or any other module
+- Any changes to `harness/dedup.py` (module kept as-is for potential future use)
+- Any `--state-file` CLI argument
+- Temp-directory cleanup after `invoke_agent()` (explicitly out of scope)
+- Changes to `harness/workspace.py`, `harness/runner.py`, `harness/scanner.py`
 - Any README or documentation updates
-- Migration of an existing state file
+- Harness mode instruction (harness.md) updates — state management spec is a
+  separate concern tracked outside this ticket
